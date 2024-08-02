@@ -1,0 +1,216 @@
+import google.generativeai as genai
+import speech_recognition as sr
+import pyttsx3
+import cv2
+import tkinter as tk
+from tkinter import ttk
+from PIL import Image, ImageTk
+import threading
+from deepface import DeepFace
+import matplotlib.pyplot as plt
+import numpy as np
+import requests
+
+# Initialize AI, speech libraries, and DeepFace
+recognizer = sr.Recognizer()
+engine = pyttsx3.init()
+genai.configure(api_key='AIzaSyAq30syoszI8LLlH8UQYPJsWH9N5u7yv9w')
+chat = genai.GenerativeModel('gemini-pro').start_chat(history=[])
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+# Global variables
+emotions = []
+video_source = None
+
+def speak_text(text):
+    engine.say(text)
+    engine.runAndWait()
+
+def capture_video():
+    global video_source
+    video_source = cv2.VideoCapture(0)
+    if not video_source.isOpened():
+        return
+
+    while True:
+        ret, frame = video_source.read()
+        if not ret:
+            break
+        
+        # Convert frame for emotion detection
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        rgb_frame = cv2.cvtColor(gray_frame, cv2.COLOR_GRAY2RGB)
+        faces = face_cascade.detectMultiScale(gray_frame, 1.1, 5)
+
+        for (x, y, w, h) in faces:
+            face_roi = rgb_frame[y:y + h, x:x + w]
+            result = DeepFace.analyze(face_roi, actions=['emotion'], enforce_detection=False)
+            emotion = result[0]['dominant_emotion']
+            emotions.append(emotion)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
+            cv2.putText(frame, emotion, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
+
+        photo = ImageTk.PhotoImage(image=Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)))
+        video_label.config(image=photo)
+        video_label.image = photo
+        root.update_idletasks()
+
+    video_source.release()
+
+def start_video_thread():
+    threading.Thread(target=capture_video, daemon=True).start()
+
+def process_speech():
+    with sr.Microphone() as source:
+        try:
+            text = recognizer.recognize_google(recognizer.listen(source))
+            text_area.insert(tk.END, f"YOU SAID = {text}\n")
+            handle_voice_command(text)
+        except (sr.UnknownValueError, sr.RequestError) as e:
+            text_area.insert(tk.END, f"Error: {str(e)}\n")
+        root.after(1000, process_speech)
+
+def handle_voice_command(text):
+    if text.lower() == 'capture video':
+        start_video_thread()
+    elif text.lower() == 'pause video':
+        # Add pause video functionality
+        pass
+    elif text.lower() == 'resume video':
+        # Add resume video functionality
+        pass
+    elif text.lower() == 'screenshot':
+        take_screenshot()
+    elif text.lower() == 'show weather':
+        fetch_weather()
+    elif text.lower() == 'show news':
+        fetch_news()
+    elif text.lower() == 'change voice':
+        # Add voice change functionality
+        pass
+    elif text.lower() == 'change language':
+        # Add language change functionality
+        pass
+    elif text.lower() == 'show emotion plot':
+        update_emotion_plot()
+    elif text.lower() == 'stress management tips':
+        show_stress_management_tips()
+    elif text.lower() == 'study tips':
+        show_study_tips()
+    elif text.lower() == 'parental support':
+        show_parental_support_info()
+    elif text.lower() == 'mental health awareness':
+        show_mental_health_awareness_info()
+    elif text.lower() == 'interactive sessions':
+        show_interactive_sessions_info()
+    else:
+        response = chat.send_message(text)
+        text_area.insert(tk.END, f"AI: {response.text}\n")
+        speak_text(response.text)
+
+def start_ai():
+    speak_text('Welcome to AI WORLD! MY NAME IS VIRAT KOHLI')
+    text_area.insert(tk.END, 'Welcome to AI WORLD! MY NAME IS VIRAT KOHLI\n')
+    text_area.insert(tk.END, "Please ask some questions, I like to talk to you.\n")
+    process_speech()
+
+def update_emotion_plot():
+    if emotions:
+        plt.figure(figsize=(10, 5))
+        plt.hist(emotions, bins=len(set(emotions)), color='skyblue', edgecolor='black')
+        plt.xlabel('Emotions')
+        plt.ylabel('Frequency')
+        plt.title('Emotion Distribution')
+        plt.show()
+
+def fetch_weather():
+    # Example API call to fetch weather
+    api_key = 'e7762a689f8c451092e4c3f4bf2ff35f'
+    city = 'DELHI'
+    response = requests.get(f'http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}')
+    weather_data = response.json()
+    text_area.insert(tk.END, f"Weather in {city}: {weather_data['weather'][0]['description']}\n")
+
+def fetch_news():
+    # Example API call to fetch news
+    api_key = 'e7762a689f8c451092e4c3f4bf2ff35f'
+    response = requests.get(f'https://newsapi.org/v2/top-headlines?country=in&apiKey={api_key}')
+    news_data = response.json()
+    for article in news_data['articles'][:5]:
+        text_area.insert(tk.END, f"News: {article['title']}\n")
+
+def take_screenshot():
+    if video_source:
+        ret, frame = video_source.read()
+        if ret:
+            filename = 'screenshot.png'
+            cv2.imwrite(filename, frame)
+            text_area.insert(tk.END, f"Screenshot saved as {filename}\n")
+
+def show_stress_management_tips():
+    text_area.insert(tk.END, "Stress Management Tips:\n")
+    text_area.insert(tk.END, "1. Practice mindfulness and meditation.\n")
+    text_area.insert(tk.END, "2. Maintain a balanced diet and exercise regularly.\n")
+    text_area.insert(tk.END, "3. Create a study schedule and stick to it.\n")
+    text_area.insert(tk.END, "4. Take breaks and get adequate sleep.\n")
+
+def show_study_tips():
+    text_area.insert(tk.END, "Study Tips:\n")
+    text_area.insert(tk.END, "1. Use active recall and spaced repetition.\n")
+    text_area.insert(tk.END, "2. Practice with mock tests and past papers.\n")
+    text_area.insert(tk.END, "3. Set realistic goals and track your progress.\n")
+    text_area.insert(tk.END, "4. Create a distraction-free study environment.\n")
+
+def show_parental_support_info():
+    text_area.insert(tk.END, "Parental Support:\n")
+    text_area.insert(tk.END, "1. Encourage open communication with your child.\n")
+    text_area.insert(tk.END, "2. Provide a supportive and stress-free environment.\n")
+    text_area.insert(tk.END, "3. Be involved in their study routine and activities.\n")
+    text_area.insert(tk.END, "4. Offer emotional support and motivation.\n")
+
+def show_mental_health_awareness_info():
+    text_area.insert(tk.END, "Mental Health Awareness:\n")
+    text_area.insert(tk.END, "1. Recognize signs of stress and anxiety in students.\n")
+    text_area.insert(tk.END, "2. Provide access to counseling services and mental health support.\n")
+    text_area.insert(tk.END, "3. Encourage resilience-building activities.\n")
+    text_area.insert(tk.END, "4. Promote a positive and supportive learning environment.\n")
+
+def show_interactive_sessions_info():
+    text_area.insert(tk.END, "Interactive Sessions:\n")
+    text_area.insert(tk.END, "1. Host Q&A sessions with experts and educators.\n")
+    text_area.insert(tk.END, "2. Organize workshops on stress management and study techniques.\n")
+    text_area.insert(tk.END, "3. Create peer support groups for sharing experiences and strategies.\n")
+
+# Create main window
+root = tk.Tk()
+root.title("AI Assistant")
+
+# Create notebook for tabs
+notebook = ttk.Notebook(root)
+notebook.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
+
+# Create AI tab
+ai_tab = ttk.Frame(notebook)
+notebook.add(ai_tab, text="AI Interaction")
+
+text_area = tk.Text(ai_tab, wrap=tk.WORD, height=20, width=60)
+text_area.pack(padx=10, pady=10)
+
+start_button = tk.Button(ai_tab, text="Start AI", command=start_ai)
+start_button.pack(padx=10, pady=5)
+
+# Create Video tab
+video_tab = ttk.Frame(notebook)
+notebook.add(video_tab, text="Live Video")
+
+video_label = tk.Label(video_tab)
+video_label.pack(padx=10, pady=10)
+
+# Start video thread when video tab is selected
+def on_video_tab_selected(event):
+    start_video_thread()
+
+notebook.bind("<<NotebookTabChanged>>", on_video_tab_selected)
+
+# Start the Tkinter main loop
+root.mainloop()
