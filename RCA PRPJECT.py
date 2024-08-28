@@ -1,3 +1,7 @@
+"DEVELOPED BY <PRIYANSHUL SHARMA>
+# WEBPAGE PRIYANSHUL.is-a.dev
+
+
 import cv2
 import numpy as np
 import tkinter as tk
